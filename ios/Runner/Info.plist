@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Need Bluetooth permission for discovering StepCue devices</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Need Bluetooth permission for discovering StepCue devices</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Need location permission for Bluetooth scanning</string>
 </dict>
 </plist>
