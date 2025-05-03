@@ -46,10 +46,10 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Need Bluetooth permission for discovering StepCue devices</string>
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Need Bluetooth permission for discovering StepCue devices</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Need location permission for Bluetooth scanning</string>
+    <string>Need BLE permission to scan and connect to devices</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>Need BLE permission to scan and connect to devices</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Need location permission for BLE scanning</string>
 </dict>
 </plist>

@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
-import 'bluetooth_manager.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:get/get.dart';
+import 'ble_controller.dart';  // Using relative import
 
-void main() {
+void main() async {
+  // Initialize Flutter Blue Plus
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Check adapter availability
+  try {
+    // Wait for Bluetooth to initialize
+    await FlutterBluePlus.adapterState.first;
+  } catch (e) {
+    print("Error initializing Bluetooth: $e");
+  }
+
   runApp(const MyApp());
 }
 
@@ -11,52 +23,36 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'StepCue',
+    return GetMaterialApp(  // Changed to GetMaterialApp for GetX
+      title: 'BLE Scanner',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
-      home: const BluetoothScannerPage(),
+      home: const MyHomePage(),
     );
   }
 }
 
-class BluetoothScannerPage extends StatefulWidget {
-  const BluetoothScannerPage({super.key});
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
 
   @override
-  State<BluetoothScannerPage> createState() => _BluetoothScannerPageState();
+  State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _BluetoothScannerPageState extends State<BluetoothScannerPage> {
-  final BluetoothManager _bluetoothManager = BluetoothManager();
-  bool _isScanning = false;
-  List<BluetoothDevice> _devices = [];
+class _MyHomePageState extends State<MyHomePage> {
+  final BleController controller = Get.put(BleController());
+  bool isBluetoothOn = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeBluetooth();
-  }
-
-  Future<void> _initializeBluetooth() async {
-    await _bluetoothManager.initialize();
-    _bluetoothManager.deviceStream.listen((devices) {
+    // Listen to Bluetooth adapter state changes
+    FlutterBluePlus.adapterState.listen((state) {
       setState(() {
-        _devices = devices;
+        isBluetoothOn = state == BluetoothAdapterState.on;
       });
-    });
-  }
-
-  void _toggleScan() async {
-    if (_isScanning) {
-      await _bluetoothManager.stopScan();
-    } else {
-      await _bluetoothManager.startScan();
-    }
-    
-    setState(() {
-      _isScanning = !_isScanning;
     });
   }
 
@@ -64,41 +60,122 @@ class _BluetoothScannerPageState extends State<BluetoothScannerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('StepCue'),
+        title: Text("BLE SCANNER"),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              _isScanning ? 'Scanning for devices...' : 'Not scanning',
-              style: const TextStyle(fontSize: 18),
-            ),
-          ),
-          Expanded(
-            child: _devices.isEmpty
-                ? const Center(child: Text('No devices found'))
-                : ListView.builder(
-                    itemCount: _devices.length,
-                    itemBuilder: (context, index) {
-                      final device = _devices[index];
-                      return ListTile(
-                        title: Text(device.name.isNotEmpty ? device.name : 'Unknown Device'),
-                        subtitle: Text(device.id),
-                        trailing: const Icon(Icons.bluetooth),
-                        onTap: () {
-                          // Handle device selection
-                        },
-                      );
-                    },
+      body: GetBuilder<BleController>(
+        builder: (controller) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Bluetooth status indicator
+                if (!isBluetoothOn)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Card(
+                      color: Colors.red.shade100,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.bluetooth_disabled, color: Colors.red),
+                            SizedBox(width: 8),
+                            Text("Bluetooth is turned off",
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _toggleScan,
-        child: Icon(_isScanning ? Icons.stop : Icons.search),
+
+                // Stream builder for scan results
+                StreamBuilder<List<ScanResult>>(
+                  stream: controller.scanResultsStream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                      return Expanded(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: snapshot.data!.length,
+                          itemBuilder: (context, index) {
+                            final data = snapshot.data![index];
+                            return Card(
+                              elevation: 2,
+                              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              child: ListTile(
+                                title: Text(data.device.platformName.isNotEmpty
+                                    ? data.device.platformName
+                                    : "Unknown Device"),
+                                subtitle: Text(data.device.remoteId.toString()),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text("${data.rssi} dBm"),
+                                    Icon(Icons.signal_cellular_alt,
+                                        color: _getSignalColor(data.rssi)),
+                                  ],
+                                ),
+                                onTap: () => controller.connectToDevice(data.device),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    } else {
+                      return Expanded(
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bluetooth_searching,
+                                  size: 80,
+                                  color: Colors.grey),
+                              SizedBox(height: 16),
+                              Text(
+                                "No Devices Found",
+                                style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "Tap SCAN button below to search for BLE devices",
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+
+                // Scan button
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: ElevatedButton.icon(
+                    onPressed: isBluetoothOn
+                        ? () => controller.scanDevices()
+                        : null,  // Disable button if Bluetooth is off
+                    icon: Icon(Icons.bluetooth_searching),
+                    label: Text("SCAN FOR DEVICES"),
+                    style: ElevatedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
+  }
+
+  // Helper method to color-code signal strength
+  Color _getSignalColor(int rssi) {
+    if (rssi >= -70) return Colors.green;
+    if (rssi >= -85) return Colors.orange;
+    return Colors.red;
   }
 }
