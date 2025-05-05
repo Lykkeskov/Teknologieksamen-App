@@ -99,6 +99,19 @@ class _HomePageState extends State<HomePage> {
               ),
               child: Text(timerRunning ? 'Stop' : 'Start', style: const TextStyle(fontSize: 20)),
             ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              onPressed: () {
+                Get.to(() => const ExercisePage());
+              },
+              icon: const Icon(Icons.directions_walk),
+              label: const Text('Vis øvelser'),
+              style: ElevatedButton.styleFrom(
+                shape: const StadiumBorder(),
+                backgroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+              ),
+            ),
             const SizedBox(height: 30),
             const Text('Vibrationsmønster', style: TextStyle(fontSize: 18)),
             const SizedBox(height: 10),
